@@ -28,6 +28,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px s
 .toolbar .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
 .toolbar .grow { flex: 1; }
 .listpick { display: flex; gap: 6px; align-items: center; }
+.notification-button { position: relative; }
+.notification-button span { display: inline-block; min-width: 16px; padding: 0 3px; border-radius: 8px; background: var(--danger); color: #fff; font-size: 11px; }
 
 .filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; padding: 6px 8px; background: var(--bar2); border-bottom: 1px solid var(--line); }
 .filters label { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
@@ -87,6 +89,20 @@ tr.collapsed .twisty.has::before { content: "▸"; }
 #toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--danger); color: #fff;
   padding: 7px 14px; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 80vw; }
 #toast.show { opacity: 1; }
+
+dialog { width: min(620px, calc(100vw - 32px)); max-height: 80vh; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 0; }
+dialog::backdrop { background: rgb(0 0 0 / 35%); }
+.notification-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bar); border-bottom: 1px solid var(--line); }
+.notification-header h2 { margin: 0; font-size: 16px; }
+.notification-header button { padding: 0 7px; font-size: 20px; line-height: 1; }
+#notifications-date, #notifications-content, .notification-actions { margin-left: 14px; margin-right: 14px; }
+#notifications-date { margin-top: 10px; }
+.notification-section { border-top: 1px solid var(--line); padding: 8px 0; }
+.notification-section h3 { margin: 0 0 4px; font-size: 14px; }
+.notification-section ul { margin: 0; padding-left: 20px; }
+.notification-section li { margin: 3px 0; }
+.notification-section a { color: var(--accent); }
+.notification-actions { display: flex; gap: 10px; align-items: center; padding: 10px 0 14px; }
 
 @media (max-width: 860px) {
   .split { flex-direction: column; }

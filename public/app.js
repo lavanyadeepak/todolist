@@ -20,6 +20,48 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
   }
 
+  const notificationLabels = {
+    overdue: 'Overdue', today: 'Due today', tomorrow: 'Due tomorrow',
+    next7: 'Due in the next 7 days', upcoming: 'Coming up next',
+  };
+  const notificationDate = (date) => date ? date.split('-').reverse().join('-') : '';
+  function renderNotifications(data) {
+    const total = Object.values(data.counts).reduce((sum, n) => sum + n, 0);
+    const badge = $('#notifications-count');
+    badge.textContent = total;
+    badge.hidden = total === 0;
+    $('#notifications-date').textContent = `Incomplete dated tasks across all lists · ${notificationDate(data.date)}`;
+    const content = $('#notifications-content');
+    content.replaceChildren();
+    for (const [key, label] of Object.entries(notificationLabels)) {
+      const section = document.createElement('section');
+      section.className = 'notification-section';
+      const heading = document.createElement('h3');
+      heading.textContent = `${label} (${data.agenda[key].length})`;
+      section.append(heading);
+      if (!data.agenda[key].length) {
+        const empty = document.createElement('p');
+        empty.className = 'meta'; empty.textContent = 'None'; section.append(empty);
+      } else {
+        const list = document.createElement('ul');
+        data.agenda[key].forEach((task) => {
+          const item = document.createElement('li');
+          const link = document.createElement('a');
+          link.href = `/lists/${task.list_id}#t${task.id}`;
+          link.textContent = `${task.title} — ${task.list_name}`;
+          item.append(link, document.createTextNode(` · ${notificationDate(task.agenda_date)}`));
+          list.append(item);
+        });
+        section.append(list);
+      }
+      content.append(section);
+    }
+  }
+  async function loadNotifications() {
+    const data = await api('GET', '/api/notifications');
+    renderNotifications(data);
+  }
+
   async function api(method, url, body) {
     const res = await fetch(url, {
       method,
@@ -248,6 +290,24 @@
   }));
   $('#list-switch').addEventListener('change', (e) => { location.href = `/lists/${e.target.value}`; });
   $('#filters').addEventListener('change', () => $('#filters').submit());
+  $('#notifications-button').addEventListener('click', async () => {
+    try {
+      await loadNotifications();
+      $('#notifications-dialog').showModal();
+    } catch (e) { toast(e.message); }
+  });
+  $('#notifications-email').addEventListener('click', guard(async () => {
+    const button = $('#notifications-email');
+    const status = $('#notifications-email-status');
+    button.disabled = true; status.textContent = 'Sending…';
+    try {
+      await api('POST', '/api/notifications/email');
+      status.textContent = 'Email sent.';
+    } catch (e) {
+      status.textContent = e.message;
+      throw e;
+    } finally { button.disabled = false; }
+  }));
 
   /* ---------- keyboard ---------- */
   document.addEventListener('keydown', (e) => {
@@ -276,6 +336,7 @@
   /* ---------- init ---------- */
   loadData();
   applyCollapse();
+  loadNotifications().catch(() => {});
   const m = location.hash.match(/^#t(\d+)$/);
   select(m ? Number(m[1]) : null);
 })();

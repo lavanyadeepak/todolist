@@ -105,6 +105,20 @@ test('recurring task resets with advanced dates; spawn-copy mode keeps the old o
   assert.match(page, /28-02-2026/); // Jan 31 + 1 month clamps to Feb 28
 });
 
+test('notifications summarize incomplete dated tasks across lists', async () => {
+  const dated = (await call('POST', '/api/tasks', { list_id: 1, title: 'Notification task' })).json;
+  await call('PATCH', `/api/tasks/${dated.id}`, { start_date: '2026-11-22', due_date: '2026-11-22' });
+  const result = await call('GET', '/api/notifications');
+  assert.equal(result.status, 200);
+  assert.ok(result.json.counts.today >= 1);
+  assert.ok(result.json.agenda.today.some((task) => task.title === 'Notification task'));
+
+  const undated = (await call('POST', '/api/tasks', { list_id: 1, title: 'No due date' })).json;
+  await call('PATCH', `/api/tasks/${undated.id}`, { start_date: '2026-11-22' });
+  const withoutDueDate = await call('GET', '/api/notifications');
+  assert.ok(!Object.values(withoutDueDate.json.agenda).flat().some((task) => task.title === 'No due date'));
+});
+
 test('filters, sort, XSS escaping, lists, export', async () => {
   const x = (await call('POST', '/api/tasks', { list_id: 1, title: '<script>alert(1)</script>' })).json;
   await call('PATCH', `/api/tasks/${x.id}`, { comments: '</script><b>boom</b>', status: 'Blocked' });

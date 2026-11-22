@@ -1,10 +1,22 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const db = require('./db');
 const T = require('./tasks');
 const { HttpError, UNITS, RECUR } = require('./fields');
 
 const app = express();
+
+// Keep local development convenient without exposing these values to the browser.
+// Existing process variables always win over values in .env.
+const envFile = path.join(__dirname, '.env');
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || match[1] in process.env) continue;
+    process.env[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
+  }
+}
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.json({ limit: '1mb' }));
@@ -50,6 +62,29 @@ app.get('/lists/:id/export.json', (req, res) => {
 app.post('/api/lists', (req, res) => res.status(201).json(T.createList(req.body.name)));
 app.patch('/api/lists/:id', (req, res) => res.json(T.renameList(idParam(req.params.id), req.body.name)));
 app.delete('/api/lists/:id', (req, res) => { T.deleteList(idParam(req.params.id)); res.json({ ok: true }); });
+app.get('/api/notifications', (req, res) => res.json(T.notificationAgenda()));
+app.post('/api/notifications/email', async (req, res, next) => {
+  try {
+    const { RESEND_API_KEY, FROM, TO } = process.env;
+    if (!RESEND_API_KEY || !FROM || !TO) throw new HttpError(503, 'Email is not configured (RESEND_API_KEY, FROM, and TO are required)');
+    const { agenda, date } = T.notificationAgenda();
+    const labels = { overdue: 'Overdue', today: 'Due today', tomorrow: 'Due tomorrow', next7: 'Due in the next 7 days', upcoming: 'Coming up next' };
+    const lines = [`Task agenda for ${date}`, ''];
+    for (const [key, label] of Object.entries(labels)) {
+      lines.push(`${label}:`);
+      if (!agenda[key].length) lines.push('  None');
+      else agenda[key].forEach((t) => lines.push(`  - ${t.title} [${t.list_name}] (${t.agenda_date})`));
+      lines.push('');
+    }
+    const mail = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: FROM, to: [TO], subject: `Task agenda for ${date}`, text: lines.join('\n') }),
+    });
+    if (!mail.ok) throw new HttpError(502, `Email provider error: ${await mail.text()}`);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
 
 app.post('/api/tasks', (req, res) => {
   const b = req.body;

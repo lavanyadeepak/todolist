@@ -288,7 +288,34 @@ function exportList(listId) {
   return { app: 'todolist-web', version: 1, list: { name: list.name }, tasks };
 }
 
+function notificationAgenda() {
+  const todayDate = today();
+  const tomorrowDate = advance(todayDate, 'daily', 1);
+  const nextSevenDate = advance(todayDate, 'daily', 7);
+  const rows = db.prepare(`
+    SELECT t.id, t.list_id, l.name AS list_name, t.title, t.priority,
+           t.due_date, t.start_date, t.due_date AS agenda_date
+    FROM tasks t
+    JOIN lists l ON l.id = t.list_id
+    WHERE t.done_date IS NULL AND t.due_date IS NOT NULL AND t.due_date <> ''
+    ORDER BY agenda_date, t.priority DESC, t.id`).all();
+
+  const agenda = { overdue: [], today: [], tomorrow: [], next7: [], upcoming: [] };
+  for (const task of rows) {
+    if (task.agenda_date < todayDate) agenda.overdue.push(task);
+    else if (task.agenda_date === todayDate) agenda.today.push(task);
+    else if (task.agenda_date === tomorrowDate) agenda.tomorrow.push(task);
+    else if (task.agenda_date <= nextSevenDate) agenda.next7.push(task);
+    else agenda.upcoming.push(task);
+  }
+  return {
+    date: todayDate,
+    counts: Object.fromEntries(Object.entries(agenda).map(([key, items]) => [key, items.length])),
+    agenda,
+  };
+}
+
 module.exports = {
   today, getList, getTask, createList, renameList, deleteList,
-  createTask, updateTask, deleteTask, moveTask, buildTree, exportList,
+  createTask, updateTask, deleteTask, moveTask, buildTree, exportList, notificationAgenda,
 };

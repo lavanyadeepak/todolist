@@ -38,6 +38,7 @@
   <span class="sep"></span>
   <a class="btn" href="/lists/<%= list.id %>/export.json" title="Download as JSON">⇩ Export</a>
   <span class="grow"></span>
+  <button id="notifications-button" class="notification-button" type="button" title="Open task notifications" aria-label="Open task notifications">🔔 <span id="notifications-count" hidden>0</span></button>
   <label class="listpick">List
     <select id="list-switch">
       <% lists.forEach((l) => { %><option value="<%= l.id %>" <%= l.id === list.id ? 'selected' : '' %>><%= l.name || '(untitled)' %></option><% }) %>
@@ -143,6 +144,18 @@
 <datalist id="dl-status"><% distinct.status.forEach((v) => { %><option value="<%= v %>"><% }) %></datalist>
 
 <div id="toast" role="status" aria-live="polite"></div>
+<dialog id="notifications-dialog" aria-labelledby="notifications-title">
+  <form method="dialog" class="notification-header">
+    <h2 id="notifications-title">Task notifications</h2>
+    <button type="submit" aria-label="Close notifications">×</button>
+  </form>
+  <p id="notifications-date" class="meta"></p>
+  <div id="notifications-content"></div>
+  <div class="notification-actions">
+    <button id="notifications-email" type="button">✉ Email this summary</button>
+    <span id="notifications-email-status" class="meta" role="status"></span>
+  </div>
+</dialog>
 <script type="application/json" id="tasks-data"><%- json %></script>
 <script src="/app.js"></script>
 </body>
