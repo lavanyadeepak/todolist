@@ -65,8 +65,8 @@ app.delete('/api/lists/:id', (req, res) => { T.deleteList(idParam(req.params.id)
 app.get('/api/notifications', (req, res) => res.json(T.notificationAgenda()));
 app.post('/api/notifications/email', async (req, res, next) => {
   try {
-    const { RESEND_API_KEY, FROM, TO } = process.env;
-    if (!RESEND_API_KEY || !FROM || !TO) throw new HttpError(503, 'Email is not configured (RESEND_API_KEY, FROM, and TO are required)');
+    const { MAILGUN_API_KEY, FROM, TO } = process.env;
+    if (!MAILGUN_API_KEY || !FROM || !TO) throw new HttpError(503, 'Email is not configured (MAILGUN_API_KEY, FROM, and TO are required)');
     const { agenda, date } = T.notificationAgenda();
     const labels = { overdue: 'Overdue', today: 'Due today', tomorrow: 'Due tomorrow', next7: 'Due in the next 7 days', upcoming: 'Coming up next' };
     const lines = [`Task agenda for ${date}`, ''];
@@ -76,11 +76,23 @@ app.post('/api/notifications/email', async (req, res, next) => {
       else agenda[key].forEach((t) => lines.push(`  - ${t.title} [${t.list_name}] (${t.agenda_date})`));
       lines.push('');
     }
-    const mail = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM, to: [TO], subject: `Task agenda for ${date}`, text: lines.join('\n') }),
+
+    const auth = Buffer.from(`api:${MAILGUN_API_KEY}`).toString('base64');
+    const body = new URLSearchParams({
+      from: FROM,
+      to: TO,
+      subject: `Task agenda for ${date}`,
+      text: lines.join('\n'),
     });
+    const mail = await fetch('https://api.mailgun.net/v3/sandbox5db0b42938cb4d2c837a43fe8dcd57ab.mailgun.org/messages', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body,
+    });
+
     if (!mail.ok) throw new HttpError(502, `Email provider error: ${await mail.text()}`);
     res.json({ ok: true });
   } catch (e) { next(e); }
