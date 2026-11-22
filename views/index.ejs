@@ -1,0 +1,148 @@
+<%
+  const sortUrl = (col) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(f)) if (v && k !== 'sort' && k !== 'dir') p.set(k, v);
+    p.set('sort', col);
+    p.set('dir', f.sort === col && f.dir !== 'desc' ? 'desc' : 'asc');
+    return '?' + p;
+  };
+  const arrow = (col) => f.sort === col ? (f.dir === 'desc' ? ' ▼' : ' ▲') : '';
+  const th = (col, label, cls = '') => `<th class="${cls}"><a href="${sortUrl(col)}">${label}${arrow(col)}</a></th>`;
+  const opts = (values, selected, any) =>
+    `<option value="">${any}</option>` + values.map((v) =>
+      `<option${v === selected ? ' selected' : ''}>${v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')}</option>`).join('');
+  const shows = [['', 'All tasks'], ['incomplete', 'Incomplete'], ['complete', 'Completed'], ['overdue', 'Overdue'],
+    ['today', 'Due today'], ['week', 'Due this week'], ['flagged', 'Flagged']];
+%><!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= list.name %> – ToDoList Web</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body data-list-id="<%= list.id %>">
+
+<nav class="toolbar" aria-label="Task actions">
+  <button data-act="new" title="New task after selection (Insert)">＋ Task</button>
+  <button data-act="sub" title="New subtask (Ctrl+Insert)">⤷ Subtask</button>
+  <button data-act="delete" title="Delete task (Delete)">✕ Delete</button>
+  <span class="sep"></span>
+  <button data-act="up" title="Move up (Alt+↑)">▲</button>
+  <button data-act="down" title="Move down (Alt+↓)">▼</button>
+  <button data-act="outdent" title="Outdent (Alt+←)">⇤</button>
+  <button data-act="indent" title="Indent (Alt+→)">⇥</button>
+  <span class="sep"></span>
+  <button data-act="expand">Expand all</button>
+  <button data-act="collapse">Collapse all</button>
+  <span class="sep"></span>
+  <a class="btn" href="/lists/<%= list.id %>/export.json" title="Download as JSON">⇩ Export</a>
+  <span class="grow"></span>
+  <label class="listpick">List
+    <select id="list-switch">
+      <% lists.forEach((l) => { %><option value="<%= l.id %>" <%= l.id === list.id ? 'selected' : '' %>><%= l.name || '(untitled)' %></option><% }) %>
+    </select>
+  </label>
+  <button data-act="newlist">＋ List</button>
+  <button data-act="deletelist" <%= lists.length < 2 ? 'disabled' : '' %>>Delete list</button>
+</nav>
+
+<form class="filters" method="get" id="filters">
+  <input type="hidden" name="sort" value="<%= f.sort %>">
+  <input type="hidden" name="dir" value="<%= f.dir %>">
+  <label>Show <select name="show"><% shows.forEach(([v, l]) => { %><option value="<%= v %>" <%= f.show === v ? 'selected' : '' %>><%= l %></option><% }) %></select></label>
+  <label>Title or comments <input type="search" name="q" value="<%= f.q %>" placeholder="any"></label>
+  <label>Status <select name="status"><%- opts(distinct.status, f.status, '<any>') %></select></label>
+  <label>Category <select name="category"><%- opts(distinct.category, f.category, '<any>') %></select></label>
+  <label>Tags <select name="tag"><%- opts(distinct.tag, f.tag, '<any>') %></select></label>
+  <label>Allocated to <select name="alloc"><%- opts(distinct.alloc, f.alloc, '<anyone>') %></select></label>
+  <a class="btn" href="/lists/<%= list.id %>">Reset</a>
+</form>
+
+<div class="projectbar">
+  <label for="list-name">Project</label>
+  <input id="list-name" type="text" value="<%= list.name %>" placeholder="Type a descriptive name for your tasklist" maxlength="200">
+</div>
+
+<main class="split">
+  <section class="tasks" aria-label="Tasks">
+    <table id="tree">
+      <thead>
+        <tr>
+          <%- th('title', 'Title', 'c-title') %>
+          <%- th('id', 'ID') %>
+          <%- th('priority', '!') %>
+          <th title="Flag">⚑</th>
+          <th title="Lock">🔒</th>
+          <%- th('percent', '%') %>
+          <%- th('est', 'Est.') %>
+          <%- th('spent', 'Spent') %>
+          <%- th('start', 'Start') %>
+          <%- th('due', 'Due') %>
+          <th>Recurs</th>
+          <%- th('alloc', 'Alloc To') %>
+          <%- th('status', 'Status') %>
+          <%- th('category', 'Cat.') %>
+          <th>Tags</th>
+        </tr>
+      </thead>
+      <tbody id="tree-body">
+        <% tree.forEach((n) => { %><%- include('_row', { node: n, depth: 0 }) %><% }) %>
+      </tbody>
+    </table>
+    <% if (!tree.length) { %>
+      <p class="empty" id="empty"><%= total ? 'No tasks match the current filter.' : 'No tasks yet. Press “＋ Task” or the Insert key.' %></p>
+    <% } %>
+  </section>
+
+  <aside class="panel" aria-label="Task details" id="panel" hidden>
+    <label class="comments-label" for="f-comments">Comments</label>
+    <textarea id="f-comments" data-field="comments" rows="10" placeholder="Notes for this task"></textarea>
+
+    <div class="attrs">
+      <label>Allocated to <input data-field="allocated_to" list="dl-alloc" placeholder="comma separated"></label>
+      <label>Allocated by <input data-field="allocated_by"></label>
+      <label>Category <input data-field="category" list="dl-category" placeholder="comma separated"></label>
+      <label>Tags <input data-field="tags" list="dl-tag" placeholder="comma separated"></label>
+      <label>Status <input data-field="status" list="dl-status"></label>
+      <label>Priority (0-10) <input data-field="priority" type="number" min="0" max="10"></label>
+      <label>Risk (0-10) <input data-field="risk" type="number" min="0" max="10"></label>
+      <label>% complete <input data-field="percent_done" type="number" min="0" max="100"></label>
+      <label>Start date <input data-field="start_date" type="date"></label>
+      <label>Due date <input data-field="due_date" type="date"></label>
+      <label>Done date <input data-field="done_date" type="date"></label>
+      <label class="pair">Time estimate
+        <span><input data-field="time_estimate" type="number" min="0" step="any">
+        <select data-field="time_est_units"><% UNITS.forEach((u) => { %><option><%= u %></option><% }) %></select></span></label>
+      <label class="pair">Time spent
+        <span><input data-field="time_spent" type="number" min="0" step="any">
+        <select data-field="time_spent_units"><% UNITS.forEach((u) => { %><option><%= u %></option><% }) %></select></span></label>
+      <label>Cost <input data-field="cost" type="number" min="0" step="any"></label>
+      <label class="pair">Colour
+        <span><input data-field="color" type="color"> <button type="button" id="clear-color" class="small">Clear</button></span></label>
+      <label>Dependency (IDs) <input data-field="depends" placeholder="e.g. 3,7"></label>
+      <label>File link <input data-field="file_link"></label>
+      <label>External ID <input data-field="external_id"></label>
+      <label>Version <input data-field="version"></label>
+      <label>Icon <input data-field="icon" maxlength="10" placeholder="emoji"></label>
+      <label class="pair">Recurrence
+        <span><select data-field="recur_freq"><% RECUR.forEach((u) => { %><option><%= u %></option><% }) %></select>
+        every <input data-field="recur_interval" type="number" min="1" max="999" class="tiny"></span></label>
+      <label class="check"><input data-field="recur_reuse" type="checkbox"> Reuse task when recurring (otherwise spawn a copy)</label>
+      <label class="check"><input data-field="flagged" type="checkbox"> Flagged</label>
+      <label class="check"><input data-field="locked" type="checkbox"> Locked</label>
+      <p class="meta" id="meta"></p>
+    </div>
+  </aside>
+</main>
+
+<datalist id="dl-alloc"><% distinct.alloc.forEach((v) => { %><option value="<%= v %>"><% }) %></datalist>
+<datalist id="dl-category"><% distinct.category.forEach((v) => { %><option value="<%= v %>"><% }) %></datalist>
+<datalist id="dl-tag"><% distinct.tag.forEach((v) => { %><option value="<%= v %>"><% }) %></datalist>
+<datalist id="dl-status"><% distinct.status.forEach((v) => { %><option value="<%= v %>"><% }) %></datalist>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="application/json" id="tasks-data"><%- json %></script>
+<script src="/app.js"></script>
+</body>
+</html>

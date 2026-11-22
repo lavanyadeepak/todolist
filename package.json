@@ -1,0 +1,17 @@
+{
+  "name": "todolist-web",
+  "version": "0.1.0",
+  "description": "Minimal web clone of AbstractSpoon ToDoList: Node + Express + EJS + SQLite",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^13.2.0",
+    "ejs": "^7.0.2",
+    "express": "^5.3.0"
+  }
+}

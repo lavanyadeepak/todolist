@@ -1,0 +1,32 @@
+<%
+  const t = node;
+  const fmt = (d) => d ? d.split('-').reverse().join('-') : '';
+  const num = (n, u) => n ? `${n} ${u}` : '';
+  const cls = ['task'];
+  if (t.done_date) cls.push('done');
+  if (t.locked) cls.push('locked');
+%>
+<tr class="<%= cls.join(' ') %>" data-id="<%= t.id %>" data-depth="<%= depth %>" data-parent="<%= t.parent_id || '' %>"<% if (t.color) { %> style="--task-color:<%= t.color %>"<% } %>>
+  <td class="c-title" style="padding-left:<%= 6 + depth * 18 %>px">
+    <span class="twisty <%= t.children.length ? 'has' : '' %>"></span>
+    <input type="checkbox" class="chk" aria-label="Done" <%= t.done_date ? 'checked' : '' %>>
+    <% if (t.icon) { %><span class="icon"><%= t.icon %></span><% } %>
+    <span class="title"><%= t.title %></span>
+    <% if (t.children.length) { %><span class="count"><%= t.sub_done %>/<%= t.sub_total %></span><% } %>
+  </td>
+  <td class="num"><%= t.uid %></td>
+  <td class="pri" style="background:hsl(<%= 120 - 12 * t.priority %> 55% 82%)"><%= t.priority %></td>
+  <td class="ico"><%= t.flagged ? '⚑' : '' %></td>
+  <td class="ico"><%= t.locked ? '🔒' : '' %></td>
+  <td class="pct"><span class="bar" style="width:<%= t.calc_percent %>%"></span><span class="pcttxt"><%= t.calc_percent %>%</span></td>
+  <td class="r"><%= num(t.time_estimate, t.time_est_units) %></td>
+  <td class="r"><%= num(t.time_spent, t.time_spent_units) %></td>
+  <td class="r"><%= fmt(t.start_date) %></td>
+  <td class="r <%= t.overdue ? 'overdue' : '' %>"><%= fmt(t.due_date) %></td>
+  <td><%= t.recur_freq !== 'none' ? '↻ ' + t.recur_freq : '' %></td>
+  <td><%= t.allocated_to %></td>
+  <td><%= t.status %></td>
+  <td><%= t.category %></td>
+  <td><%= t.tags %></td>
+</tr>
+<% t.children.forEach((child) => { %><%- include('_row', { node: child, depth: depth + 1 }) %><% }) %>
