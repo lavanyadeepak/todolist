@@ -102,6 +102,7 @@ const updateTask = db.transaction((id, patch) => {
     try { values[k] = FIELDS[k](patch[k]); }
     catch (e) { throw new HttpError(400, `${k}: ${e.message}`); }
   }
+  const completesByPercent = values.percent_done === 100 && !task.done_date;
   if (values.percent_done === 100 && !('done_date' in values) && !task.done_date) values.done_date = today();
   if ('percent_done' in values && values.percent_done < 100 && !('done_date' in values)) values.done_date = null;
 
@@ -111,6 +112,10 @@ const updateTask = db.transaction((id, patch) => {
       .run({ ...values, _mod: nowStamp(), _id: id });
   }
   if ('done' in patch) setDone(id, !!patch.done);
+  else if (completesByPercent) {
+    const updated = getTask(id);
+    if (updated.recur_freq !== 'none') recur(updated);
+  }
   return getTask(id);
 });
 

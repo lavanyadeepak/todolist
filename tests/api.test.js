@@ -86,6 +86,16 @@ test('recurring task resets with advanced dates; spawn-copy mode keeps the old o
   assert.equal(r.json.due_date, '2026-12-06');
   assert.equal(r.json.percent_done, 0);
 
+  const yearly = (await call('POST', '/api/tasks', { list_id: 1, title: 'Yearly review' })).json;
+  await call('PATCH', `/api/tasks/${yearly.id}`, {
+    start_date: '2026-11-22', due_date: '2026-11-29', recur_freq: 'yearly', recur_interval: 1,
+  });
+  const yearlyDone = await call('PATCH', `/api/tasks/${yearly.id}`, { percent_done: 100 });
+  assert.equal(yearlyDone.json.done_date, null);
+  assert.equal(yearlyDone.json.start_date, '2027-11-22');
+  assert.equal(yearlyDone.json.due_date, '2027-11-29');
+  assert.equal(yearlyDone.json.percent_done, 0);
+
   const m = (await call('POST', '/api/tasks', { list_id: 1, title: 'Rent' })).json;
   await call('PATCH', `/api/tasks/${m.id}`, { due_date: '2026-01-31', recur_freq: 'monthly', recur_reuse: false });
   const done = await call('PATCH', `/api/tasks/${m.id}`, { done: true });

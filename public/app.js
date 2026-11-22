@@ -213,13 +213,26 @@
     location.href = '/';
   });
 
+  const renameList = guard(async () => {
+    // The current list name is already rendered in the page. There is no
+    // GET /api/lists/:id endpoint, so avoid making a request that returns 404.
+    const listName = $('#list-name').value || '';
+    const newName = prompt('Rename list to:', listName);
+    if (newName === null) return;
+    const l = await api('PATCH', `/api/lists/${listId}`, { name: newName });
+    document.title = `${l.name} – ToDoList Web`;
+    $('#list-name').value = l.name || '';
+    const opt = $(`#list-switch option[value="${listId}"]`);
+    if (opt) opt.textContent = l.name || '(untitled)';
+  });
+
   const actions = {
     new: () => createTask('task'), sub: () => createTask('sub'), delete: deleteSelected,
     up: () => moveSelected('up'), down: () => moveSelected('down'),
     indent: () => moveSelected('indent'), outdent: () => moveSelected('outdent'),
     expand: () => { collapsed.clear(); saveCollapsed(); applyCollapse(); },
     collapse: () => { $$('#tree-body tr.task').forEach((r) => { if ($('.twisty.has', r)) collapsed.add(Number(r.dataset.id)); }); saveCollapsed(); applyCollapse(); },
-    newlist: newList, deletelist: deleteList,
+    newlist: newList, deletelist: deleteList, renamelist: renameList,
   };
   $('.toolbar').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-act]');
