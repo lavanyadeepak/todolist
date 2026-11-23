@@ -3,6 +3,7 @@ const fs = require('fs');
 const express = require('express');
 const db = require('./db');
 const T = require('./tasks');
+const { createBackup } = require('./backup');
 const { HttpError, UNITS, RECUR } = require('./fields');
 
 const app = express();
@@ -56,6 +57,14 @@ app.get('/lists/:id', (req, res) => {
 app.get('/lists/:id/export.json', (req, res) => {
   const out = T.exportList(idParam(req.params.id));
   res.attachment(`${out.list.name.replace(/[^\w.-]+/g, '_') || 'tasklist'}.json`).json(out);
+});
+
+app.get('/download/backup.zip', async (req, res) => {
+  const archive = await createBackup(db);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  res.type('application/zip');
+  res.attachment(`todolist-backup-${stamp}.zip`);
+  res.send(archive);
 });
 
 /* ---------- JSON API ---------- */

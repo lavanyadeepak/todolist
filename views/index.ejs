@@ -39,6 +39,7 @@
   <a class="btn" href="/lists/<%= list.id %>/export.json" title="Download as JSON">⇩ Export</a>
   <span class="grow"></span>
   <button id="notifications-button" class="notification-button" type="button" title="Open task notifications" aria-label="Open task notifications">🔔 <span id="notifications-count" hidden>0</span></button>
+  <a id="download-backup" class="btn" href="/download/backup.zip" title="Flush and download a SQLite backup">⇩ Download</a>
   <label class="listpick">List
     <select id="list-switch">
       <% lists.forEach((l) => { %><option value="<%= l.id %>" <%= l.id === list.id ? 'selected' : '' %>><%= l.name || '(untitled)' %></option><% }) %>

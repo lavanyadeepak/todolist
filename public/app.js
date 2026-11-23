@@ -62,15 +62,22 @@
     renderNotifications(data);
   }
 
+  const pendingWrites = new Set();
   async function api(method, url, body) {
-    const res = await fetch(url, {
+    const request = fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || res.statusText);
-    return data;
+    if (method !== 'GET') pendingWrites.add(request);
+    try {
+      const res = await request;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      return data;
+    } finally {
+      pendingWrites.delete(request);
+    }
   }
   const guard = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message); await refreshTree().catch(() => {}); } };
 
@@ -290,6 +297,12 @@
   }));
   $('#list-switch').addEventListener('change', (e) => { location.href = `/lists/${e.target.value}`; });
   $('#filters').addEventListener('change', () => $('#filters').submit());
+  $('#download-backup').addEventListener('click', async (e) => {
+    if (!pendingWrites.size) return;
+    e.preventDefault();
+    await Promise.allSettled([...pendingWrites]);
+    location.href = e.currentTarget.href;
+  });
   $('#notifications-button').addEventListener('click', async () => {
     try {
       await loadNotifications();

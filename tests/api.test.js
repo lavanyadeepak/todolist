@@ -139,3 +139,11 @@ test('filters, sort, XSS escaping, lists, export', async () => {
   assert.equal(exp.json.app, 'todolist-web');
   assert.ok(exp.json.tasks.length > 0);
 });
+
+test('downloads a flushed SQLite backup as a ZIP', async () => {
+  const backup = await call('GET', '/download/backup.zip');
+  assert.equal(backup.status, 200);
+  assert.match(backup.text, /^PK/);
+  assert.equal(backup.text.charCodeAt(0), 0x50);
+  assert.equal(backup.text.charCodeAt(1), 0x4b);
+});
