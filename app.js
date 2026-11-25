@@ -36,8 +36,23 @@ app.use(async (req, res, next) => {
     }
   }
 
-  res.set('WWW-Authenticate', 'Basic realm="ToDoList", charset="UTF-8"');
-  res.status(401).type('text').send('Authentication required');
+const messages = [
+  'Halt! Who goes there? Prove your worth before viewing the backlog.',
+  '401 Unauthorized. The to-do list refuses to confess its secrets to strangers.',
+  'Credentials required. Otherwise, all your pending tasks remain Schrödinger’s tasks.'
+];
+const msg = messages[Math.floor(Math.random() * messages.length)];
+
+res.set('WWW-Authenticate', 'Basic realm="ToDoList", charset="UTF-8"');
+res.status(401).type('html').send(`
+  <body style="font-family: system-ui, sans-serif; display: grid; place-items: center; height: 90vh; color: #333;">
+    <div style="text-align: center;">
+      <h2>🔒 401 Unauthorized</h2>
+      <p>${msg}</p>
+      <button onclick="location.reload()">Try Again</button>
+    </div>
+  </body>
+`);
 });
 
 app.use(express.json({ limit: '1mb' }));
