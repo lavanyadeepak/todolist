@@ -1,13 +1,31 @@
 # ToDoList Web
 
 A minimal web re-implementation of AbstractSpoon ToDoList using **Node + Express + EJS + SQLite** (better-sqlite3).
-Single-user, no login, listens on `127.0.0.1` only.
+All users share the same task data. The app uses HTTP Basic authentication and listens on `127.0.0.1` by default.
 
     npm install
     npm start            # http://127.0.0.1:3000
     npm test
 
-Env: `PORT`, `HOST` (set deliberately if you expose it; there is no auth), `DB_PATH` (default `data/todolist.db`).
+Env: `PORT`, `HOST` (set deliberately to expose it), `DB_PATH` (default `data/todolist.db`).
+
+## Authentication
+
+The first request displays the browser's built-in username/password prompt. Credentials are checked against the
+`auth_users` table in SQLite; passwords must be bcrypt hashes in the format produced by Apache `htpasswd -B`.
+Create a hash with `htpasswd -B -C 12 -n alice`, then insert or update the row using the username and hash from
+its output:
+
+```sql
+INSERT INTO auth_users (username, password_hash)
+VALUES ('alice', '$2y$12$...replace-with-the-full-hash...')
+ON CONFLICT(username) DO UPDATE SET password_hash = excluded.password_hash;
+```
+
+The table is created automatically at startup. To reset a password, generate a new hash and update that user's
+`password_hash` row. There is no self-service recovery or account-management page. Basic authentication sends
+the password with each request, so use HTTPS (typically via a reverse proxy) before setting `HOST` to a
+non-local address.
 
 ## What's in
 - Multiple task lists (= one .tdl file / project), each with its own per-list task ID
@@ -20,4 +38,4 @@ Env: `PORT`, `HOST` (set deliberately if you expose it; there is no auth), `DB_P
 
 ## Not yet (vs the original)
 Custom attributes, import of existing `.tdl` XML, reminders, time tracking, other views (Gantt, calendar, kanban),
-archiving, multi-user/auth, undo, rich-text comments.
+archiving, per-user data/permissions, undo, rich-text comments.

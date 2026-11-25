@@ -67,6 +67,11 @@ CREATE TABLE IF NOT EXISTS tasks (
   UNIQUE (list_id, uid)
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_list_parent ON tasks(list_id, parent_id, pos);
+
+CREATE TABLE IF NOT EXISTS auth_users (
+  username     TEXT PRIMARY KEY NOT NULL,
+  password_hash TEXT NOT NULL
+);
 `);
 
 module.exports = db;

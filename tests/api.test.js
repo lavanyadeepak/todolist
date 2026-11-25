@@ -2,26 +2,71 @@ process.env.DB_PATH = ':memory:';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const bcrypt = require('bcryptjs');
 const app = require('../app');
+const db = require('../db');
 
 let base, server;
 test.before(async () => {
+  db.prepare('INSERT INTO auth_users (username, password_hash) VALUES (?, ?)').run(
+    'tester', bcrypt.hashSync('test-password', 4).replace('$2b$', '$2y$'),
+  );
   await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
   base = `http://127.0.0.1:${server.address().port}`;
 });
 test.after(() => server.close());
 
+const authHeader = (username, password) => `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 const call = async (method, url, body) => {
   const res = await fetch(base + url, {
-    method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined,
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader('tester', 'test-password'),
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   let json; try { json = JSON.parse(text); } catch { /* html */ }
   return { status: res.status, json, text };
 };
 
+test('requires valid Basic auth for pages, static files, and APIs', async () => {
+  const page = await fetch(base + '/', { redirect: 'manual' });
+  assert.equal(page.status, 401);
+  assert.match(page.headers.get('www-authenticate'), /^Basic realm="ToDoList"/);
+
+  const asset = await fetch(base + '/app.js');
+  assert.equal(asset.status, 401);
+
+  const unknownUser = await fetch(base + '/api/notifications', {
+    headers: { Authorization: authHeader('unknown', 'test-password') },
+  });
+  assert.equal(unknownUser.status, 401);
+
+  const wrongPassword = await fetch(base + '/api/notifications', {
+    headers: { Authorization: authHeader('tester', 'wrong-password') },
+  });
+  assert.equal(wrongPassword.status, 401);
+
+  const malformedJson = await fetch(base + '/api/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{',
+  });
+  assert.equal(malformedJson.status, 401);
+
+  const authenticated = await fetch(base + '/api/notifications', {
+    headers: { Authorization: authHeader('tester', 'test-password') },
+  });
+  assert.equal(authenticated.status, 200);
+});
+
 test('home redirects to a list and renders', async () => {
-  const res = await fetch(base + '/', { redirect: 'manual' });
+  const res = await fetch(base + '/', {
+    redirect: 'manual',
+    headers: { Authorization: authHeader('tester', 'test-password') },
+  });
   assert.equal(res.status, 302);
   const page = await call('GET', res.headers.get('location'));
   assert.equal(page.status, 200);

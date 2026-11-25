@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const db = require('./db');
 const T = require('./tasks');
 const { createBackup } = require('./backup');
@@ -20,6 +21,25 @@ if (fs.existsSync(envFile)) {
 }
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+app.use(async (req, res, next) => {
+  const authorization = req.get('authorization') || '';
+  const match = authorization.match(/^Basic ([A-Za-z0-9+/]+={0,2})$/);
+  if (match && match[1].length % 4 === 0) {
+    const decoded = Buffer.from(match[1], 'base64').toString('utf8');
+    const separator = decoded.indexOf(':');
+    if (separator > 0) {
+      const username = decoded.slice(0, separator);
+      const password = decoded.slice(separator + 1);
+      const user = db.prepare('SELECT password_hash FROM auth_users WHERE username = ?').get(username);
+      if (user && await bcrypt.compare(password, user.password_hash)) return next();
+    }
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="ToDoList", charset="UTF-8"');
+  res.status(401).type('text').send('Authentication required');
+});
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
